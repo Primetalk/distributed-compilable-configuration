@@ -5,11 +5,13 @@ import eu.timepit.refined.auto.autoRefineV
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-/** It's a configuration for a single node that will implement both echo client and server.
+/** It's a configuration for a single node that will
+  * implement both echo client and server.
   */
-object SingleNodeConfig extends NodeConfig
-  with EchoConfig[String]
+object SingleNodeConfig
+  extends EchoConfig[String]
   with EchoClientConfig[String]
+  with LifecycleManagerConfig
 {
   def nodeId = Singleton
 
@@ -18,4 +20,6 @@ object SingleNodeConfig extends NodeConfig
   def echoServiceDependency = echoService
 
   def pollInterval: FiniteDuration = 1.second
+
+  def lifetime: FiniteDuration = 10.seconds
 }

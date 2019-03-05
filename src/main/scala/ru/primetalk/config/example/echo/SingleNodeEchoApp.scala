@@ -9,8 +9,11 @@ import scala.language.higherKinds
 
 object SingleNodeEchoApp extends IOApp {
 
-  val config: EchoConfig[String] with EchoClientConfig[String] =
-    SingleNodeConfig
+  val config:
+    EchoConfig[String]
+      with EchoClientConfig[String]
+      with LifecycleManagerConfig
+    = SingleNodeConfig
 
   override def run(args: List[String]): IO[ExitCode] = {
     implicit val resolver: AddressResolver[IO] = localHostResolver
@@ -18,9 +21,6 @@ object SingleNodeEchoApp extends IOApp {
 
     val allRoles = SingleNodeImpl.resource
     val allRolesResource: Resource[IO, Unit] = allRoles(config)
-    allRolesResource.use( _ =>
-      timer.sleep(10.seconds) *>
-        IO{ ExitCode.Success }
-    )
+    allRolesResource.use( _ => lifecycle(config))
   }
 }

@@ -13,12 +13,12 @@ object api extends Meta {
 
   type EchoProtocol[A] = JsonHttpRest[A, A]
 
-  trait EchoConfig[A] extends RoleConfig { self: NodeConfig =>
+  trait EchoConfig[A] extends ServiceRoleConfig {
     def echoPort: Port[EchoProtocol[A]]
     def echoService: HttpUrlEndPoint[EchoProtocol[A]] = providedService(echoPort, "echo")
   }
 
-  trait EchoClientConfig[A] extends RoleConfig { self: NodeConfig =>
+  trait EchoClientConfig[A] {
     def pollInterval: FiniteDuration
     def echoServiceDependency: HttpUrlEndPoint[EchoProtocol[A]]
   }

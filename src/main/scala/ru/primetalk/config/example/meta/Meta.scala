@@ -11,8 +11,8 @@ import org.http4s.Uri.Authority
 import shapeless.Nat._0
 
 import scala.language.higherKinds
-
 import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.FiniteDuration
 
 trait Protocols {
   sealed trait Protocol
@@ -105,13 +105,25 @@ trait EndPoints extends AddressResolving {
 
 trait Configs extends EndPoints {
   trait NodeConfig {
-    def nodeId: NodeId
   }
 
-  trait RoleConfig { self: NodeConfig =>
+  trait ServiceRoleConfig {
+    def nodeId: NodeId
     protected def providedService[P <: HttpUrlProtocol](port: Port[P], pathPrefix: String): HttpUrlEndPoint[P] =
-      HttpUrlEndPoint(EndPoint(self.nodeId, port), pathPrefix)
+      HttpUrlEndPoint(EndPoint(nodeId, port), pathPrefix)
   }
+
+  /** Manages the lifetime of a node.
+    * The node will run for the configured lifetime and then exit.
+    */
+  trait LifecycleManagerConfig {
+    def lifetime: FiniteDuration
+  }
+
+  def lifecycle[F[_]: Timer: Sync](config: LifecycleManagerConfig)(implicit timer: Timer[F]): F[ExitCode] =
+    Sync[F].map(
+      Timer[F].sleep(config.lifetime)
+    )(_ => ExitCode.Success)
 }
 
 trait ResourceAcquiring extends Configs {
