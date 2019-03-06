@@ -30,21 +30,20 @@ trait Protocols {
 }
 
 trait AddressResolving extends Protocols {
-  type NodeId
 
   /** Actual address of the other node. */
-  case class NodeAddress[N <: NodeId](host: Uri.Host)
+  case class NodeAddress[NodeId](host: Uri.Host)
 
   trait AddressResolver[F[_]] {
     /** Resolves the address of the given node id.
       * If the other node's address is not yet known, the returned `F` will block and wait until it's available.
       * It might also fail in case of timeout or the other node's failure.
       */
-    def resolve[N <: NodeId](nodeId: N): F[NodeAddress[N]]
+    def resolve[NodeId](nodeId: NodeId): F[NodeAddress[NodeId]]
   }
 
   def localHostResolver[F[_]: Applicative]: AddressResolver[F] = new AddressResolver[F]{
-    override def resolve[N <: NodeId](nodeId: N): F[NodeAddress[N]] =
+    override def resolve[NodeId](nodeId: NodeId): F[NodeAddress[NodeId]] =
       Applicative[F].pure(NodeAddress(Uri.IPv4("127.0.0.1")))
   }
 
@@ -56,17 +55,17 @@ trait EndPoints extends AddressResolving {
   case class Port[Protocol](portNumber: PortNumber)
 
 
-  case class EndPoint[P](node: NodeId, port: Port[P])
+  case class EndPoint[NodeId, P](node: NodeId, port: Port[P])
 
   /** It's an endpoint for an http protocol with url. */
-  case class HttpUrlEndPoint[P <: HttpUrlProtocol](endPoint: EndPoint[P], path: String)
+  case class HttpUrlEndPoint[NodeId, P <: HttpUrlProtocol](endPoint: EndPoint[NodeId, P], path: String)
 
   /** An endpoint for a simple get protocol. */
-  case class HttpSimpleGetEndPoint[P <: HttpSimpleGetProtocol](endPoint: EndPoint[P], pathPrefix: String)
+  case class HttpSimpleGetEndPoint[NodeId, P <: HttpSimpleGetProtocol](endPoint: EndPoint[NodeId, P], pathPrefix: String)
 
   implicit class AddressResolverOps[F[_]](resolver: AddressResolver[F]) {
 
-    def toUri(p: HttpUrlEndPoint[_])(implicit F: Functor[F]): F[Uri] =
+    def toUri(p: HttpUrlEndPoint[_, _])(implicit F: Functor[F]): F[Uri] =
       F.map(resolver.resolve(p.endPoint.node)) { address =>
         new Uri(
           scheme = Some(Uri.Scheme.http),
@@ -81,12 +80,12 @@ trait EndPoints extends AddressResolving {
 
   }
 
-  implicit class HttpUrlEndPointOps[P <: HttpUrlProtocol](p: HttpUrlEndPoint[P]) {
+  implicit class HttpUrlEndPointOps[NodeId, P <: HttpUrlProtocol](p: HttpUrlEndPoint[NodeId, P]) {
     def toUri[F[_]: Functor](resolver: AddressResolver[F]): F[Uri] =
       resolver.toUri(p)
   }
 
-  implicit class HttpSimpleGetEndPointOps[P <: HttpSimpleGetProtocol](p: HttpSimpleGetEndPoint[P]) {
+  implicit class HttpSimpleGetEndPointOps[NodeId, P <: HttpSimpleGetProtocol](p: HttpSimpleGetEndPoint[NodeId, P]) {
     def toUri[F[_]: Functor](resolver: AddressResolver[F])(pathSuffix: String): F[Uri] =
       Functor[F].map(resolver.resolve(p.endPoint.node)) { address =>
         new Uri(
@@ -108,9 +107,10 @@ trait Configs extends EndPoints {
   }
 
   trait ServiceRoleConfig {
+    type NodeId
     def nodeId: NodeId
-    protected def providedService[P <: HttpUrlProtocol](port: Port[P], pathPrefix: String): HttpUrlEndPoint[P] =
-      HttpUrlEndPoint(EndPoint(nodeId, port), pathPrefix)
+    protected def providedService[P <: HttpUrlProtocol](port: Port[P], pathPrefix: String): HttpUrlEndPoint[NodeId, P] =
+      HttpUrlEndPoint(EndPoint[NodeId, P](nodeId, port), pathPrefix)
   }
 
   /** Manages the lifetime of a node.
@@ -120,7 +120,7 @@ trait Configs extends EndPoints {
     def lifetime: FiniteDuration
   }
 
-  def lifecycle[F[_]: Timer: Sync](config: LifecycleManagerConfig)(implicit timer: Timer[F]): F[ExitCode] =
+  def lifecycle[F[_]: Timer: Sync](config: LifecycleManagerConfig): F[ExitCode] =
     Sync[F].map(
       Timer[F].sleep(config.lifetime)
     )(_ => ExitCode.Success)

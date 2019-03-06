@@ -13,6 +13,11 @@ object SingleNodeConfig
   with EchoClientConfig[String]
   with LifecycleManagerConfig
 {
+  type NodeId = NodeIdImpl
+
+  sealed trait NodeIdImpl
+  case object Singleton extends NodeIdImpl
+
   def nodeId = Singleton
 
   def echoPort = Port[EchoProtocol[String]](8081)

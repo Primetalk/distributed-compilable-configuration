@@ -1,11 +1,8 @@
 package ru.primetalk.config.example.echo
 
 import cats.effect._
-import cats.implicits._
 import api._
 import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.DurationInt
-import scala.language.higherKinds
 
 object SingleNodeEchoApp extends IOApp {
 

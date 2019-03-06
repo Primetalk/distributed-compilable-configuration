@@ -6,21 +6,16 @@ import scala.concurrent.duration.FiniteDuration
 
 object api extends Meta {
 
-  override type NodeId = NodeIdImpl
-
-  sealed trait NodeIdImpl
-  case object Singleton extends NodeIdImpl
-
   type EchoProtocol[A] = JsonHttpRest[A, A]
 
   trait EchoConfig[A] extends ServiceRoleConfig {
     def echoPort: Port[EchoProtocol[A]]
-    def echoService: HttpUrlEndPoint[EchoProtocol[A]] = providedService(echoPort, "echo")
+    def echoService: HttpUrlEndPoint[NodeId, EchoProtocol[A]] = providedService(echoPort, "echo")
   }
 
   trait EchoClientConfig[A] {
     def pollInterval: FiniteDuration
-    def echoServiceDependency: HttpUrlEndPoint[EchoProtocol[A]]
+    def echoServiceDependency: HttpUrlEndPoint[_, EchoProtocol[A]]
   }
 
 }
