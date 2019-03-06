@@ -130,10 +130,24 @@ trait Configs extends EndPoints {
     def lifetime: FiniteDuration
   }
 
-  def lifecycle[F[_]: Timer: Sync](config: FiniteDurationLifecycleConfig): F[ExitCode] =
+  def finiteLifecycle[F[_]: Timer: Sync](config: FiniteDurationLifecycleConfig): F[ExitCode] =
     Sync[F].map(
       Timer[F].sleep(config.lifetime)
     )(_ => ExitCode.Success)
+
+  /** Manages the lifetime of a node.
+    * The node will run until SIGTERM and then normally exit.
+    */
+  trait SigTermLifecycleConfig {
+    // no configuration is actually needed
+  }
+
+  def lifecycleSigTerm[F[_]: Async](config: SigTermLifecycleConfig): F[ExitCode] =
+    Sync[F].map(
+      Async[F].async[Nothing](_ => ()) // ignoring callback. This async computation will never finish.
+                                       // Hence `Nothing` result type
+    )(_ => ExitCode.Success)
+
 
 }
 
@@ -185,18 +199,38 @@ trait Roles extends ResourceAcquiring  {
       Reader(_ => Resource.pure[F, Unit](()))
   }
 
-  trait FiniteDurationLifecycleRoleImpl extends RoleImpl[IO] {
-    type Config <: FiniteDurationLifecycleConfig
+  trait LifecycleRoleImpl[F[_]] extends RoleImpl[F] {
 
-    def run(config: Config)(implicit timer: Timer[IO], contextShift: ContextShift[IO],
-      resolver: AddressResolver[IO],
-      applicative: Applicative[IO],
+    def lifecycle(config: Config)(implicit timer: Timer[F], async: Async[F]): F[ExitCode]
+
+    def run(config: Config)(implicit timer: Timer[F],
+      contextShift: ContextShift[F],
+      async: Async[F],
+      resolver: AddressResolver[F],
+      applicative: Applicative[F],
       ec: ExecutionContext
-    ): IO[ExitCode] = {
+    ): F[ExitCode] = {
       val allRoles = resource
-      val allRolesResource: Resource[IO, Unit] = allRoles(config)
+      val allRolesResource: Resource[F, Unit] = allRoles(config)
       allRolesResource.use( _ => lifecycle(config))
     }
+
+  }
+
+  trait FiniteDurationLifecycleRoleImpl extends LifecycleRoleImpl[IO] {
+    type Config <: FiniteDurationLifecycleConfig
+
+    override def lifecycle(config: Config)(implicit timer: Timer[IO], async: Async[IO]): IO[ExitCode] =
+      finiteLifecycle(config)
+
+  }
+
+  trait SigIntLifecycleRoleImpl extends LifecycleRoleImpl[IO] {
+    type Config <: SigTermLifecycleConfig
+
+    override def lifecycle(config: Config)(implicit timer: Timer[IO], async: Async[IO]): IO[ExitCode] =
+      lifecycleSigTerm(config)
+
   }
 
 }
