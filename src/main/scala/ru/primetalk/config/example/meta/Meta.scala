@@ -26,9 +26,10 @@ trait Protocols {
   sealed trait JsonHttpRest[RequestMessage, ResponseMessage] extends HttpUrlProtocol
 
   /** Simple get url and text response.
-    * The request message is simply appended to the url.
+    * The request message is simply appended to the url as a string
+    * and the response will just contain string (`text/plain`).
     */
-  sealed trait SimpleHttpGetRest[ResponseMessage] extends HttpSimpleGetProtocol
+  sealed trait SimpleHttpGetRest[RequestMessage, ResponseMessage] extends HttpSimpleGetProtocol
 }
 
 trait AddressResolving extends Protocols {
@@ -119,8 +120,8 @@ trait Configs extends EndPoints {
   trait ServiceRoleConfig {
     type NodeId
     def nodeId: NodeId
-    protected def providedService[P <: HttpUrlProtocol](port: Port[P], pathPrefix: String): HttpUrlEndPoint[NodeId, P] =
-      HttpUrlEndPoint(EndPoint[NodeId, P](nodeId, port), pathPrefix)
+    protected def providedSimpleService[P <: HttpSimpleGetProtocol](port: Port[P], pathPrefix: String): HttpSimpleGetEndPoint[NodeId, P] =
+      HttpSimpleGetEndPoint(EndPoint[NodeId, P](nodeId, port), pathPrefix)
   }
 
   /** Manages the lifetime of a node.

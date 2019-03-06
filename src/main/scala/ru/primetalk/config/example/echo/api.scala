@@ -9,16 +9,17 @@ object api extends Meta {
   type FiniteDuration = scala.concurrent.duration.FiniteDuration
   implicit def durationInt(i: Int): scala.concurrent.duration.DurationInt = new scala.concurrent.duration.DurationInt(i)
 
-  type EchoProtocol[A] = JsonHttpRest[A, A]
+  type EchoProtocol[A] = SimpleHttpGetRest[A, A]
 
   trait EchoConfig[A] extends ServiceRoleConfig {
     def echoPort: Port[EchoProtocol[A]]
-    def echoService: HttpUrlEndPoint[NodeId, EchoProtocol[A]] = providedService(echoPort, "echo")
+    def echoService: HttpSimpleGetEndPoint[NodeId, EchoProtocol[A]] = providedSimpleService(echoPort, "echo")
   }
 
   trait EchoClientConfig[A] {
+    def testMessage: String
     def pollInterval: FiniteDuration
-    def echoServiceDependency: HttpUrlEndPoint[_, EchoProtocol[A]]
+    def echoServiceDependency: HttpSimpleGetEndPoint[_, EchoProtocol[A]]
   }
 
 }

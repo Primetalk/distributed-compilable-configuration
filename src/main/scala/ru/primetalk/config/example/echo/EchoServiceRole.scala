@@ -13,22 +13,48 @@ import org.http4s.implicits._
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-trait EchoServiceRole extends RoleImpl[IO] {
+object SimpleHttpGetServiceImpl {
+  trait FromString[A] {
+    def fromString(str: String): Either[Throwable, A]
+  }
 
-  private def echoService[F[_]: Effect]: HttpRoutes[F] = {
+  trait ToString[A] {
+    def convertToString(a: A): String
+  }
+
+  implicit object FromStringString extends FromString[String] {
+    override def fromString(a: String): Either[Throwable, String] = Right(a)
+  }
+  implicit object ToStringString extends ToString[String] {
+    override def convertToString(a: String): String = a
+  }
+
+  def simpleHttpGetService[F[_]: Effect, A: FromString, B: ToString](f: A => B): HttpRoutes[F] = {
     val dsl = Http4sDsl[F]
     import dsl._
     HttpRoutes.of[F]{
       case GET -> Root / message =>
-        println("Got request " + message + Thread.currentThread().getName)
-        Ok(message)
+        val inputEither: Either[Throwable, A] = implicitly[FromString[A]].fromString(message)
+        inputEither.fold(
+          t =>
+            InternalServerError(t.getMessage),
+          input =>
+            Ok(implicitly[ToString[B]].convertToString(f(input)))
+        )
     }
   }
 
-  private def echoServiceAcquirer3[C<:EchoConfig[String]](implicit timerIO: Timer[IO], contextShift: ContextShift[IO], resolver: AddressResolver[IO]): ResourceReader[IO, C, Unit] =
+
+}
+trait EchoServiceRole extends RoleImpl[IO] {
+
+  import SimpleHttpGetServiceImpl._
+  def echoFunction[A](input: A): A = input
+
+  private def echoServiceAcquirer3[A: FromString : ToString, C<:EchoConfig[A]](implicit timerIO: Timer[IO], contextShift: ContextShift[IO], resolver: AddressResolver[IO]): ResourceReader[IO, C, Unit] =
     Reader(config => {
       val httpApp =
-        Router[IO]("/" -> echoService).orNotFound
+        Router[IO]("/" -> simpleHttpGetService(echoFunction[A])).orNotFound
       val serverBuilder =
         BlazeServerBuilder[IO]
           .bindHttp(config.echoPort.portNumber.value, "0.0.0.0")
@@ -45,7 +71,7 @@ trait EchoServiceRole extends RoleImpl[IO] {
     resolver: AddressResolver[IO],
     applicative: Applicative[IO],
     ec: ExecutionContext): ResourceReader[IO, Config, Unit] =
-    super.resource >>[Config, Unit] echoServiceAcquirer3[Config]
+    super.resource >>[Config, Unit] echoServiceAcquirer3[String, Config]
 
 
 }

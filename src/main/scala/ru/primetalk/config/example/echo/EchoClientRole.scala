@@ -28,7 +28,7 @@ trait EchoClientRole extends RoleImpl[IO] {
   ): ResourceReader[IO, C, Unit] =
     Reader(config => {
       for {
-        uri <- config.echoServiceDependency.toUri(resolver)
+        uri <- config.echoServiceDependency.toUri(resolver)(config.testMessage)
         _   <-
           BlazeClientBuilder[IO](ec).resource
             .use { client =>

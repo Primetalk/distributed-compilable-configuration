@@ -20,6 +20,8 @@ object SingleNodeConfig
 
   def echoServiceDependency = echoService
 
+  def testMessage: String = "hello"
+
   def pollInterval: FiniteDuration = 1.second
 
   def lifetime: FiniteDuration = 10500.milliseconds // additional 0.5 seconds so that there are 10 request, not 9.
