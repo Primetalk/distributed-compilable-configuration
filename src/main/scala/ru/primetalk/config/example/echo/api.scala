@@ -2,9 +2,12 @@ package ru.primetalk.config.example.echo
 
 import ru.primetalk.config.example.meta.Meta
 
-import scala.concurrent.duration.FiniteDuration
+import scala.language.implicitConversions
 
 object api extends Meta {
+
+  type FiniteDuration = scala.concurrent.duration.FiniteDuration
+  implicit def durationInt(i: Int): scala.concurrent.duration.DurationInt = new scala.concurrent.duration.DurationInt(i)
 
   type EchoProtocol[A] = JsonHttpRest[A, A]
 

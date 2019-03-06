@@ -4,7 +4,8 @@ import cats.{Applicative, Functor}
 import cats.data.Reader
 import cats.effect._
 import eu.timepit.refined.W
-import eu.timepit.refined.api.Refined
+import eu.timepit.refined.api.{RefType, Refined, Validate}
+import eu.timepit.refined.macros.RefineMacro
 import eu.timepit.refined.numeric.Interval.Closed
 import org.http4s.Uri
 import org.http4s.Uri.Authority
@@ -13,6 +14,7 @@ import shapeless.Nat._0
 import scala.language.higherKinds
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
+import scala.language.experimental.macros
 
 trait Protocols {
   sealed trait Protocol
@@ -50,6 +52,14 @@ trait AddressResolving extends Protocols {
 }
 
 trait EndPoints extends AddressResolving {
+  /** Copy of eu.timepit.refined.auto#autoRefineV for convenience. So that
+    * in config file we don't have to import additional packages. Just `import api._`.
+    */
+  implicit def autoRefineVRef[T, P](t: T)(
+    implicit rt: RefType[Refined],
+    v: Validate[T, P]
+  ): Refined[T, P] = macro RefineMacro.impl[Refined, T, P]
+
   type PortNumber = Refined[Int, Closed[_0, W.`65535`.T]]
 
   case class Port[Protocol](portNumber: PortNumber)
@@ -116,14 +126,15 @@ trait Configs extends EndPoints {
   /** Manages the lifetime of a node.
     * The node will run for the configured lifetime and then exit.
     */
-  trait LifecycleManagerConfig {
+  trait FiniteDurationLifecycleConfig {
     def lifetime: FiniteDuration
   }
 
-  def lifecycle[F[_]: Timer: Sync](config: LifecycleManagerConfig): F[ExitCode] =
+  def lifecycle[F[_]: Timer: Sync](config: FiniteDurationLifecycleConfig): F[ExitCode] =
     Sync[F].map(
       Timer[F].sleep(config.lifetime)
     )(_ => ExitCode.Success)
+
 }
 
 trait ResourceAcquiring extends Configs {
@@ -172,6 +183,20 @@ trait Roles extends ResourceAcquiring  {
       ec: ExecutionContext
     ): ResourceReader[F, Config, Unit] =
       Reader(_ => Resource.pure[F, Unit](()))
+  }
+
+  trait FiniteDurationLifecycleRoleImpl extends RoleImpl[IO] {
+    type Config <: FiniteDurationLifecycleConfig
+
+    def run(config: Config)(implicit timer: Timer[IO], contextShift: ContextShift[IO],
+      resolver: AddressResolver[IO],
+      applicative: Applicative[IO],
+      ec: ExecutionContext
+    ): IO[ExitCode] = {
+      val allRoles = resource
+      val allRolesResource: Resource[IO, Unit] = allRoles(config)
+      allRolesResource.use( _ => lifecycle(config))
+    }
   }
 
 }

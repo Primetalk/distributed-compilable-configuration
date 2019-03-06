@@ -9,15 +9,13 @@ object SingleNodeEchoApp extends IOApp {
   val config:
     EchoConfig[String]
       with EchoClientConfig[String]
-      with LifecycleManagerConfig
+      with FiniteDurationLifecycleConfig
     = SingleNodeConfig
 
-  override def run(args: List[String]): IO[ExitCode] = {
-    implicit val resolver: AddressResolver[IO] = localHostResolver
-    implicit val ec: ExecutionContext = ExecutionContext.global
+  implicit val resolver: AddressResolver[IO] = localHostResolver
+  implicit val ec: ExecutionContext = ExecutionContext.global
 
-    val allRoles = SingleNodeImpl.resource
-    val allRolesResource: Resource[IO, Unit] = allRoles(config)
-    allRolesResource.use( _ => lifecycle(config))
-  }
+  override def run(args: List[String]): IO[ExitCode] =
+    SingleNodeImpl.run(config)
+
 }
