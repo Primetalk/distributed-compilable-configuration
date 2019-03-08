@@ -4,10 +4,10 @@ import cats.effect._
 import api._
 import scala.language.higherKinds
 
-object SingleNodeImpl extends ZeroRoleImpl[IO]
-  with EchoServiceRole
-  with EchoClientRole
-  with FiniteDurationLifecycleRoleImpl
+object SingleNodeImpl extends ZeroServiceImpl[IO]
+  with EchoServiceService
+  with EchoClientService
+  with FiniteDurationLifecycleServiceImpl
 {
   type Config = EchoConfig[String] with EchoClientConfig[String] with FiniteDurationLifecycleConfig
 }

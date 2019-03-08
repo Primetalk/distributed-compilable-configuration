@@ -11,7 +11,7 @@ import org.http4s.implicits._
 import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 
-trait EchoServiceRole extends RoleImpl[IO] {
+trait EchoServiceService extends ServiceImpl[IO] {
 
   import SimpleHttpGetServiceImpl._
   def echoFunction[A](input: A): A = input
@@ -19,7 +19,7 @@ trait EchoServiceRole extends RoleImpl[IO] {
   private def echoServiceAcquirer3[A: FromString : ToString, C<:EchoConfig[A]](implicit timerIO: Timer[IO], contextShift: ContextShift[IO], resolver: AddressResolver[IO]): ResourceReader[IO, C, Unit] =
     Reader(config => {
       val httpApp =
-        Router[IO]("/" -> simpleHttpGetService(echoFunction[A])).orNotFound
+        Router[IO]("/" + config.echoService.pathPrefix + "/" -> simpleHttpGetService(echoFunction[A])).orNotFound
       val serverBuilder =
         BlazeServerBuilder[IO]
           .bindHttp(config.echoPort.portNumber.value, "0.0.0.0")

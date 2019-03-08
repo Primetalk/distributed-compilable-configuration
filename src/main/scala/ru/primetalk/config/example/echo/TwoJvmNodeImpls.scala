@@ -6,11 +6,11 @@ import api._
 
 object TwoJvmNodeImpls {
 
-  object TwoJvmNodeServerImpl extends ZeroRoleImpl[IO] with EchoServiceRole with SigIntLifecycleRoleImpl {
+  object TwoJvmNodeServerImpl extends ZeroServiceImpl[IO] with EchoServiceService with SigIntLifecycleServiceImpl {
     type Config = EchoConfig[String] with SigTermLifecycleConfig
   }
 
-  object TwoJvmNodeClientImpl extends ZeroRoleImpl[IO] with EchoClientRole with FiniteDurationLifecycleRoleImpl {
+  object TwoJvmNodeClientImpl extends ZeroServiceImpl[IO] with EchoClientService with FiniteDurationLifecycleServiceImpl {
     type Config = EchoClientConfig[String] with FiniteDurationLifecycleConfig
   }
 

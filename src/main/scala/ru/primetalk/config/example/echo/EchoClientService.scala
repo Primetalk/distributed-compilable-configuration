@@ -12,7 +12,7 @@ import scala.concurrent.ExecutionContext
 import scala.language.higherKinds
 import ru.primetalk.config.example.meta.IoUtils._
 
-trait EchoClientRole extends RoleImpl[IO] {
+trait EchoClientService extends ServiceImpl[IO] {
 
   private def singleRoundOfRequestResponse(client: Client[IO], uri: Uri): IO[ExitCode] =
     for {

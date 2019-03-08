@@ -11,13 +11,13 @@ object api extends Meta {
 
   type EchoProtocol[A] = SimpleHttpGetRest[A, A]
 
-  trait EchoConfig[A] extends ServiceRoleConfig {
+  trait EchoConfig[A] extends ServiceConfig {
     def echoPort: Port[EchoProtocol[A]]
     def echoService: HttpSimpleGetEndPoint[NodeId, EchoProtocol[A]] = providedSimpleService(echoPort, "echo")
   }
 
   trait EchoClientConfig[A] {
-    def testMessage: String
+    def testMessage: String = "test"
     def pollInterval: FiniteDuration
     def echoServiceDependency: HttpSimpleGetEndPoint[_, EchoProtocol[A]]
   }

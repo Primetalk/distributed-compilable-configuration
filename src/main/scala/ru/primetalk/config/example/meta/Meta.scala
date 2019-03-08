@@ -117,7 +117,7 @@ trait Configs extends EndPoints {
   trait NodeConfig {
   }
 
-  trait ServiceRoleConfig {
+  trait ServiceConfig {
     type NodeId
     def nodeId: NodeId
     protected def providedSimpleService[P <: HttpSimpleGetProtocol](port: Port[P], pathPrefix: String): HttpSimpleGetEndPoint[NodeId, P] =
@@ -173,9 +173,9 @@ trait ResourceAcquiring extends Configs {
   }
 
 }
-trait Roles extends ResourceAcquiring  {
+trait Services extends ResourceAcquiring  {
 
-  trait RoleImpl[F[_]] {
+  trait ServiceImpl[F[_]] {
     type Config
     def resource(
       implicit
@@ -187,7 +187,7 @@ trait Roles extends ResourceAcquiring  {
     ): ResourceReader[F, Config, Unit]
   }
 
-  trait ZeroRoleImpl[F[_]] extends RoleImpl[F] {
+  trait ZeroServiceImpl[F[_]] extends ServiceImpl[F] {
     type Config <: Any
     def resource(
       implicit
@@ -200,7 +200,7 @@ trait Roles extends ResourceAcquiring  {
       Reader(_ => Resource.pure[F, Unit](()))
   }
 
-  trait LifecycleRoleImpl[F[_]] extends RoleImpl[F] {
+  trait LifecycleServiceImpl[F[_]] extends ServiceImpl[F] {
 
     def lifecycle(config: Config)(implicit timer: Timer[F], async: Async[F]): F[ExitCode]
 
@@ -211,14 +211,14 @@ trait Roles extends ResourceAcquiring  {
       applicative: Applicative[F],
       ec: ExecutionContext
     ): F[ExitCode] = {
-      val allRoles = resource
-      val allRolesResource: Resource[F, Unit] = allRoles(config)
-      allRolesResource.use( _ => lifecycle(config))
+      val allServicesAsResourceReader = resource
+      val allServicesResource: Resource[F, Unit] = allServicesAsResourceReader(config)
+      allServicesResource.use( _ => lifecycle(config))
     }
 
   }
 
-  trait FiniteDurationLifecycleRoleImpl extends LifecycleRoleImpl[IO] {
+  trait FiniteDurationLifecycleServiceImpl extends LifecycleServiceImpl[IO] {
     type Config <: FiniteDurationLifecycleConfig
 
     override def lifecycle(config: Config)(implicit timer: Timer[IO], async: Async[IO]): IO[ExitCode] =
@@ -226,7 +226,7 @@ trait Roles extends ResourceAcquiring  {
 
   }
 
-  trait SigIntLifecycleRoleImpl extends LifecycleRoleImpl[IO] {
+  trait SigIntLifecycleServiceImpl extends LifecycleServiceImpl[IO] {
     type Config <: SigTermLifecycleConfig
 
     override def lifecycle(config: Config)(implicit timer: Timer[IO], async: Async[IO]): IO[ExitCode] =
@@ -236,4 +236,4 @@ trait Roles extends ResourceAcquiring  {
 
 }
 
-trait Meta extends Roles
+trait Meta extends Services
