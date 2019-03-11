@@ -17,7 +17,7 @@ object TwoJvmConfig {
 
     def nodeId = NodeServer
 
-    def echoPort = Port[EchoProtocol[String]](8081)
+    override def portNumber: PortNumber = 8080
   }
 
   object NodeClientConfig extends EchoClientConfig[String] with FiniteDurationLifecycleConfig
@@ -28,7 +28,7 @@ object TwoJvmConfig {
 
     def lifetime: FiniteDuration = 10500.milliseconds // additional 0.5 seconds so that there are 10 request, not 9.
 
-    def testMessage: String = "dolly"
+    override def testMessage: UrlPathElement = "dolly"
   }
 
 }

@@ -12,17 +12,25 @@ object SingleNodeConfig
 {
   case object Singleton
 
+  // configuration of server
+
   type NodeId = Singleton.type
 
   def nodeId = Singleton
 
-  def echoPort = Port[EchoProtocol[String]](8081)
+  /** Type safe service port specification */
+  override def portNumber: PortNumber = 8088
 
+  // configuration of client
+
+  /** We'll use the service provided by the same host. */
   def echoServiceDependency = echoService
 
-  def testMessage: String = "hello"
+  override def testMessage: UrlPathElement = "hello"
 
   def pollInterval: FiniteDuration = 1.second
 
-  def lifetime: FiniteDuration = 10500.milliseconds // additional 0.5 seconds so that there are 10 request, not 9.
+  // lifecycle controller configuration
+  // additional 0.5 seconds so that there are 10 requests, not 9.
+  def lifetime: FiniteDuration = 10500.milliseconds
 }

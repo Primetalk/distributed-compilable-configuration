@@ -4,9 +4,10 @@ import cats.{Applicative, Functor}
 import cats.data.Reader
 import cats.effect._
 import eu.timepit.refined.W
-import eu.timepit.refined.api.{RefType, Refined, Validate}
+import eu.timepit.refined.api.{Inference, RefType, Refined, Validate}
 import eu.timepit.refined.macros.RefineMacro
 import eu.timepit.refined.numeric.Interval.Closed
+import eu.timepit.refined.string.MatchesRegex
 import org.http4s.Uri
 import org.http4s.Uri.Authority
 import shapeless.Nat._0
@@ -63,16 +64,24 @@ trait EndPoints extends AddressResolving {
 
   type PortNumber = Refined[Int, Closed[_0, W.`65535`.T]]
 
-  case class Port[Protocol](portNumber: PortNumber)
+  type UrlPathPrefix = Refined[String, MatchesRegex[W.`"[a-zA-Z_0-9/]*"`.T]]
 
+  type UrlPathElement = Refined[String, MatchesRegex[W.`"[a-zA-Z_0-9]*"`.T]]
 
-  case class EndPoint[NodeId, P](node: NodeId, port: Port[P])
+  implicit def inferPrefixFromElement: Inference[MatchesRegex[W.`"[a-zA-Z_0-9]*"`.T], MatchesRegex[W.`"[a-zA-Z_0-9/]*"`.T]] =
+    Inference(isValid = true, "Path element is also a path prefix")
+
+  case class TcpPort[Protocol](portNumber: PortNumber)
+
+  case class PortWithPrefix[Protocol](portNumber: PortNumber, pathPrefix: UrlPathPrefix)
+
+  case class TcpEndPoint[NodeId, P](node: NodeId, port: TcpPort[P])
 
   /** It's an endpoint for an http protocol with url. */
-  case class HttpUrlEndPoint[NodeId, P <: HttpUrlProtocol](endPoint: EndPoint[NodeId, P], path: String)
+  case class HttpUrlEndPoint[NodeId, P <: HttpUrlProtocol](endPoint: TcpEndPoint[NodeId, P], path: String)
 
   /** An endpoint for a simple get protocol. */
-  case class HttpSimpleGetEndPoint[NodeId, P <: HttpSimpleGetProtocol](endPoint: EndPoint[NodeId, P], pathPrefix: String)
+  case class HttpSimpleGetEndPoint[NodeId, P <: HttpSimpleGetProtocol](node: NodeId, port: PortWithPrefix[P])
 
   implicit class AddressResolverOps[F[_]](resolver: AddressResolver[F]) {
 
@@ -97,16 +106,16 @@ trait EndPoints extends AddressResolving {
   }
 
   implicit class HttpSimpleGetEndPointOps[NodeId, P <: HttpSimpleGetProtocol](p: HttpSimpleGetEndPoint[NodeId, P]) {
-    def toUri[F[_]: Functor](resolver: AddressResolver[F])(pathSuffix: String): F[Uri] =
-      Functor[F].map(resolver.resolve(p.endPoint.node)) { address =>
+    def toUri[F[_]: Functor](resolver: AddressResolver[F])(pathSuffix: UrlPathElement): F[Uri] =
+      Functor[F].map(resolver.resolve(p.node)) { address =>
         new Uri(
           scheme = Some(Uri.Scheme.http),
           authority = Some(Authority(
             userInfo = None,
             host = address.host,
-            port = Some(p.endPoint.port.portNumber.value)
+            port = Some(p.port.portNumber.value)
           )),
-          path = p.pathPrefix + pathSuffix
+          path = p.port.pathPrefix + pathSuffix.value
         )
       }
   }
@@ -120,8 +129,8 @@ trait Configs extends EndPoints {
   trait ServiceConfig {
     type NodeId
     def nodeId: NodeId
-    protected def providedSimpleService[P <: HttpSimpleGetProtocol](port: Port[P], pathPrefix: String): HttpSimpleGetEndPoint[NodeId, P] =
-      HttpSimpleGetEndPoint(EndPoint[NodeId, P](nodeId, port), pathPrefix)
+    protected def providedSimpleService[P <: HttpSimpleGetProtocol](port: PortWithPrefix[P]): HttpSimpleGetEndPoint[NodeId, P] =
+      HttpSimpleGetEndPoint(nodeId, port)
   }
 
   /** Manages the lifetime of a node.
@@ -179,9 +188,9 @@ trait Services extends ResourceAcquiring  {
     type Config
     def resource(
       implicit
+      resolver: AddressResolver[F],
       timer: Timer[F],
       contextShift: ContextShift[F],
-      resolver: AddressResolver[F],
       applicative: Applicative[F],
       ec: ExecutionContext
     ): ResourceReader[F, Config, Unit]
@@ -191,9 +200,9 @@ trait Services extends ResourceAcquiring  {
     type Config <: Any
     def resource(
       implicit
+      resolver: AddressResolver[F],
       timer: Timer[F],
       contextShift: ContextShift[F],
-      resolver: AddressResolver[F],
       applicative: Applicative[F],
       ec: ExecutionContext
     ): ResourceReader[F, Config, Unit] =
@@ -204,10 +213,11 @@ trait Services extends ResourceAcquiring  {
 
     def lifecycle(config: Config)(implicit timer: Timer[F], async: Async[F]): F[ExitCode]
 
-    def run(config: Config)(implicit timer: Timer[F],
+    def run(config: Config)(implicit
+      resolver: AddressResolver[F],
+      timer: Timer[F],
       contextShift: ContextShift[F],
       async: Async[F],
-      resolver: AddressResolver[F],
       applicative: Applicative[F],
       ec: ExecutionContext
     ): F[ExitCode] = {

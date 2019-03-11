@@ -21,10 +21,11 @@ trait EchoClientService extends ServiceImpl[IO] {
       _ <- IO{ println("Response: " + response) }
     } yield ExitCode.Success
 
-  private def echoClientStarter[C<:EchoClientConfig[String]](implicit ec: ExecutionContext,
+  private def echoClientStarter[C<:EchoClientConfig[String]](implicit
+    resolver: AddressResolver[IO],
+    ec: ExecutionContext,
     timerIO: Timer[IO],
-    contextShift: ContextShift[IO],
-    resolver: AddressResolver[IO]
+    contextShift: ContextShift[IO]
   ): ResourceReader[IO, C, Unit] =
     Reader(config => {
       for {
@@ -43,8 +44,10 @@ trait EchoClientService extends ServiceImpl[IO] {
 
   override type Config <: EchoClientConfig[String]
 
-  abstract override def resource(implicit timer: Timer[IO], contextShift: ContextShift[IO],
+  abstract override def resource(implicit
     resolver: AddressResolver[IO],
+    timer: Timer[IO],
+    contextShift: ContextShift[IO],
     applicative: Applicative[IO],
     ec: ExecutionContext): ResourceReader[IO, Config, Unit] =
     super.resource >>[Config, Unit] echoClientStarter[Config]

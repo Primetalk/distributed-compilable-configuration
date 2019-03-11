@@ -19,7 +19,8 @@ trait EchoServiceService extends ServiceImpl[IO] {
   private def echoServiceAcquirer3[A: FromString : ToString, C<:EchoConfig[A]](implicit timerIO: Timer[IO], contextShift: ContextShift[IO], resolver: AddressResolver[IO]): ResourceReader[IO, C, Unit] =
     Reader(config => {
       val httpApp =
-        Router[IO]("/" + config.echoService.pathPrefix + "/" -> simpleHttpGetService(echoFunction[A])).orNotFound
+        Router[IO]("/" + config.echoService.port.pathPrefix + "/" ->
+          simpleHttpGetService(echoFunction[A])).orNotFound
       val serverBuilder =
         BlazeServerBuilder[IO]
           .bindHttp(config.echoPort.portNumber.value, "0.0.0.0")
@@ -32,8 +33,10 @@ trait EchoServiceService extends ServiceImpl[IO] {
 
   override type Config <: EchoConfig[String]
 
-  abstract override def resource(implicit timer: Timer[IO], contextShift: ContextShift[IO],
+  abstract override def resource(implicit
     resolver: AddressResolver[IO],
+    timer: Timer[IO],
+    contextShift: ContextShift[IO],
     applicative: Applicative[IO],
     ec: ExecutionContext): ResourceReader[IO, Config, Unit] =
     super.resource >>[Config, Unit] echoServiceAcquirer3[String, Config]
