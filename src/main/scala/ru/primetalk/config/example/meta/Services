@@ -1,0 +1,61 @@
+
+//  /** Readiness signal. It's a callback that is called whenever the service is ready to serve. */
+//  type Ready[F[_]] = F[Unit]
+//
+//  /** Start role. After initialization it calls readiness callback.
+//    * Very soon after starting the node it returns a shutdown handler,
+//    * so that we can stop lengthy initialization or stop running service.
+//    */
+//  trait RoleStarter[F[_], Config] {
+//
+//    type RunningRoleControlHandle =  Fiber[F, ExitCode]
+//
+//    /** When the resource is available, the role has successfully started. */
+//    def apply(config: Config): Resource[F, RunningRoleControlHandle]
+//  }
+
+  /**
+    * Service
+    * 1. Can be started given config and address resolver. It might fail during startup.
+    *    Startup might take significant time. After startup the service is ready to serve requests.
+    * 2. After startup it might terminate for it's own reasons (either normally or due to runtime failure).
+    *    we might be able to join the service and wait for it's termination.
+    * 3. And we can shutdown the service at any moment after startup.
+    *
+    * Resource idea is not sufficient for services that might terminate themselves.
+    */
+//  type Service[F[_], Config] = AddressResolver[F] => Config => F[Fiber[F, ExitCode]]
+
+
+//  type ServiceAcquirer[F[_], Config] = Config => F[CancelToken[F]]
+//
+//  implicit class ServiceAcquirerOps[F[_]: Functor, Config](s: ServiceAcquirer[F, Config]) {
+//    def toResourceAcquirer: ResourceReader[F, Config, CancelToken[F]] =
+//      Reader(c => Resource.make[F, CancelToken[F]](s(c))(identity))
+//  }
+
+  /** A role is along running process that might eventually terminate with ExitCode, or could
+    * be cancelled if `F` is `Cancellable`. */
+//  type RunningRole[F[_]] = F[ExitCode]
+
+//  type IORunningRole = RunningRole[IO]
+
+//  type RoleStarterF[F[_], C<:RoleConfig] = AddressResolver[F] => C => RunningRole[F]
+
+//  type RoleStarterIO[C<:RoleConfig] = RoleStarterF[IO, C]
+
+//  implicit class ResourceOps[F[_]: Sync, A](resource: Resource[F, A]){
+//    /** Calls on readiness signal when resource is allocated. */
+//    def onReady(ready: Ready[F]): Resource[F, A] =
+//      resource.evalMap(res => Sync[F].map(ready)(_ => res))
+//  }
+//
+//  implicit class RoleStarterOps[C<:RoleConfig](r: RoleStarterF[IO, C]) {
+//    def toRoleStarter(implicit contextShift: ContextShift[IO], resolver: AddressResolver[IO]): RoleStarter[IO, C] = new RoleStarter[IO, C] {
+//      /** When the resource is available, the role has successfully started. */
+//      override def apply(config: C): Resource[IO, this.RunningRoleControlHandle] = {
+//        val f: IO[ExitCode] = r(resolver)(config)
+//        f.start.toResource
+//      }
+//    }
+//  }
