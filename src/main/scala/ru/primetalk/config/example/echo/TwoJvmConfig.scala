@@ -1,6 +1,6 @@
 package ru.primetalk.config.example.echo
+
 import api._
-import cats.effect.ConcurrentEffect
 
 /** It's a configuration for a two nodes that will
   * implement echo client and server separately.
@@ -11,7 +11,7 @@ object TwoJvmConfig {
 
   case object NodeServer extends NodeIdImpl
   case object NodeClient extends NodeIdImpl
-  val t:ConcurrentEffect
+
   object NodeServerConfig extends EchoConfig[String] with SigTermLifecycleConfig
   {
     type NodeId = NodeIdImpl
